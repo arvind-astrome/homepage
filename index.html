@@ -3,97 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arvind's Hub OS | v4</title>
+    <title>Hub OS // Arvind</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap');
+        :root { --bg: #0b0f1a; --card: rgba(30, 41, 59, 0.3); --border: #1e293b; --accent: #2bc3de; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg); color: #f1f5f9; height: 100vh; overflow: hidden; }
 
-        :root { --bg: #0b0f1a; --card: #161b2a; --border: #2d334a; --text: #f1f5f9; }
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
-
+        /* Dashboard Layout */
         #md-render { column-count: 4; column-gap: 1rem; height: 100%; }
+        .md-section { break-inside: avoid; margin-bottom: 0.75rem; background: var(--card); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border); display: inline-block; width: 100%; }
 
-        .md-section {
-            break-inside: avoid; margin-bottom: 0.75rem;
-            background: rgba(30, 41, 59, 0.3); padding: 0.75rem;
-            border-radius: 8px; border: 1px solid var(--border);
-            display: inline-block; width: 100%; transition: opacity 0.2s;
-            position: relative;
-        }
-
-        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
-
-        #md-render h2 {
-            font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
-            letter-spacing: 0.05em; border-left: 3px solid; padding-left: 0.5rem; margin: 0;
-        }
-
-        /* Accents */
+        #md-render h2 { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; border-left: 3px solid; padding-left: 0.5rem; margin-bottom: 0.5rem; }
         .md-section:nth-of-type(4n+1) h2 { border-color: #2ed8a2; color: #2ed8a2; }
         .md-section:nth-of-type(4n+2) h2 { border-color: #d1aff8; color: #d1aff8; }
         .md-section:nth-of-type(4n+3) h2 { border-color: #ec6183; color: #ec6183; }
         .md-section:nth-of-type(4n+4) h2 { border-color: #e8b195; color: #e8b195; }
 
         #md-render ul { list-style: none; padding: 0; }
-        #md-render li { margin-bottom: 0.25rem; font-size: 0.75rem; }
-        #md-render a { color: #97989d; text-decoration: none; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 4px; border-radius: 4px; }
-        #md-render a.match { color: #fff; background: #2bc3de44; border-left: 2px solid #2bc3de; transform: translateX(4px); }
-        .dimmed { opacity: 0.15; filter: blur(1px); }
+        #md-render li { margin-bottom: 0.25rem; font-size: 0.75rem; color: #97989d; }
+        #md-render a { color: inherit; text-decoration: none; transition: 0.1s; }
+        #md-render a.match { color: #fff; background: #2bc3de33; border-left: 2px solid var(--accent); padding-left: 4px; }
+        .dimmed { opacity: 0.1; filter: blur(2px); }
 
-        .add-btn { opacity: 0.4; transition: opacity 0.2s; cursor: pointer; }
-        .add-btn:hover { opacity: 1; color: #fff; }
-
-        .quick-add-form, #calendar-form { background: #1e293b; padding: 8px; border-radius: 6px; margin-top: 8px; display: none; border: 1px solid #334155; }
+        /* Sleek Todo Styling */
+        .todo-item {
+            display: flex; align-items: center; gap: 10px; padding: 6px 8px;
+            background: rgba(15, 23, 42, 0.4); border-radius: 6px;
+            margin-bottom: 4px; border: 1px solid transparent; transition: 0.2s;
+        }
+        .todo-item:hover { border-color: #334155; background: rgba(15, 23, 42, 0.8); }
+        .todo-item input[type="checkbox"] {
+            appearance: none; width: 14px; height: 14px; border: 1px solid #475569;
+            border-radius: 3px; cursor: pointer; position: relative; background: #0f172a;
+        }
+        .todo-item input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+        .todo-item input[type="checkbox"]:checked::after {
+            content: '✓'; position: absolute; color: #000; font-size: 10px; font-weight: bold; left: 2px; top: -1px;
+        }
+        .todo-item span { font-size: 11px; color: #94a3b8; user-select: none; }
+        .todo-item.done span { text-decoration: line-through; opacity: 0.4; }
 
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; font-size: 0.6rem; text-align: center; }
-        .curr-day { background: #2bc3de; color: #0b0f1a; border-radius: 2px; font-weight: bold; }
+        .curr-day { background: var(--accent); color: #0b0f1a; border-radius: 2px; font-weight: bold; }
 
-        /* The magical Dark Mode filter for GCal */
-        #gcal-frame { filter: invert(0.9) contrast(1.2) hue-rotate(180deg); }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
     </style>
 </head>
 <body class="flex flex-col">
 
-    <header class="flex justify-between items-center px-4 py-2 border-b border-slate-800 bg-slate-950">
+    <header class="flex justify-between items-center px-4 py-2 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
         <div class="flex items-center space-x-6 flex-1">
-            <span class="text-[#2ed8a2] font-bold tracking-tighter text-sm whitespace-nowrap">HUB_OS // ARVIND</span>
+            <span class="text-[#2ed8a2] font-bold tracking-tighter text-sm">HUB_OS // ARVIND</span>
             <div class="relative w-full max-w-md">
                 <i data-lucide="terminal" class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500"></i>
-                <input type="text" id="cmd-input" placeholder="Type shortcut (e.g. a/pra)..." class="w-full bg-slate-900/50 border border-slate-700 rounded-md py-1.5 pl-10 pr-4 text-xs font-mono text-cyan-400 focus:outline-none focus:border-cyan-500/50 transition-all">
+                <input type="text" id="cmd-input" placeholder="Type shortcut or search..." class="w-full bg-slate-900/50 border border-slate-800 rounded-md py-1.5 pl-10 pr-4 text-xs font-mono text-cyan-400 focus:outline-none focus:border-cyan-500/30 transition-all">
             </div>
-            <div id="clock" class="font-mono text-sm text-slate-600 border-l border-slate-800 pl-4">00:00:00</div>
+            <div id="clock" class="font-mono text-xs text-slate-600 border-l border-slate-800 pl-4">00:00:00</div>
         </div>
         <div class="flex space-x-1 ml-4">
-            <button onclick="toggleEditor()" class="p-1.5 hover:bg-slate-800 rounded text-slate-400"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
-            <button onclick="downloadMarkdown()" class="p-1.5 hover:bg-slate-800 rounded text-slate-400"><i data-lucide="download" class="w-4 h-4"></i></button>
+            <button onclick="toggleEditor()" class="p-1.5 hover:bg-slate-800 rounded text-slate-500"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+            <button onclick="downloadMarkdown()" class="p-1.5 hover:bg-slate-800 rounded text-slate-500"><i data-lucide="download" class="w-4 h-4"></i></button>
         </div>
     </header>
 
     <main class="flex-1 grid grid-cols-12 overflow-hidden">
-        <aside class="col-span-2 border-r border-slate-800 p-3 space-y-3 overflow-y-auto bg-slate-950/30">
+        <aside class="col-span-2 border-r border-slate-800 p-3 flex flex-col space-y-4 overflow-hidden bg-slate-950/20">
             <div id="calendars-container" class="space-y-3"></div>
 
-            <div class="pt-3 border-t border-slate-800">
-                <div class="flex justify-between items-center mb-2">
-                    <h3 class="text-[9px] font-bold text-slate-600 uppercase">Schedule</h3>
-                    <i data-lucide="plus" class="add-btn w-3 h-3" onclick="toggleCalendarForm()"></i>
-                </div>
+            <div class="flex-1 flex flex-col min-h-0 pt-4 border-t border-slate-800">
+                <h3 class="text-[9px] font-bold text-slate-600 uppercase mb-3 flex justify-between items-center px-1">
+                    Terminal_Tasks
+                    <span id="task-count" class="text-cyan-600 font-mono">0</span>
+                </h3>
 
-                <div id="calendar-form" class="mb-3 space-y-2">
-                    <textarea id="gcal-input" placeholder="Paste <iframe> or URL here..." class="w-full bg-slate-800 text-[10px] p-2 rounded border border-slate-600 outline-none h-16 text-slate-300"></textarea>
-                    <div class="flex space-x-2">
-                        <button onclick="saveCalendar()" class="bg-cyan-700 px-2 py-1 rounded text-[10px]">Save Cal</button>
-                        <button onclick="toggleCalendarForm()" class="text-slate-500 text-[10px]">Cancel</button>
-                    </div>
-                </div>
+                <div id="todo-list" class="flex-1 overflow-y-auto space-y-1 pr-1"></div>
 
-                <div class="w-full h-56 bg-slate-900/50 rounded border border-slate-800 overflow-hidden relative">
-                    <iframe id="gcal-frame" src="about:blank" style="border-width:0" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
-                    <div id="gcal-placeholder" class="absolute inset-0 flex items-center justify-center text-[9px] text-slate-600 text-center p-4">
-                        Click + to link Google Calendar
-                    </div>
+                <div class="mt-3 pt-3 border-t border-slate-900">
+                    <input type="text" id="todo-input" placeholder="+ New task..." class="w-full bg-slate-900/80 border border-slate-800 rounded p-2 text-[10px] outline-none focus:border-cyan-900">
                 </div>
             </div>
         </aside>
@@ -101,8 +91,11 @@
         <section class="col-span-10 p-4 overflow-y-auto">
             <div id="render-container" class="h-full"><div id="md-render"></div></div>
             <div id="editor-container" class="hidden h-full flex flex-col space-y-2">
-                <textarea id="markdown-input" class="flex-1 w-full p-4 rounded bg-slate-900 border border-slate-700 text-slate-300 font-mono text-xs"></textarea>
-                <button onclick="saveContent()" class="bg-cyan-600 px-4 py-1.5 rounded text-white text-xs font-bold w-fit">SAVE ALL</button>
+                <textarea id="markdown-input" class="flex-1 w-full p-6 rounded bg-slate-900/50 border border-slate-800 text-slate-400 font-mono text-xs outline-none focus:border-slate-700 transition-all"></textarea>
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] text-slate-600 font-mono">RAW_MARKDOWN_EDITOR</span>
+                    <button onclick="saveContent()" class="bg-cyan-600/20 hover:bg-cyan-600/40 text-cyan-400 border border-cyan-600/50 px-6 py-1.5 rounded text-xs font-bold transition-all">COMMIT_CHANGES</button>
+                </div>
             </div>
         </section>
     </main>
@@ -114,140 +107,102 @@
         renderer.heading = function(text, level) {
             if (level === 2) {
                 let html = (sectionIndex++ > 0) ? '</div>' : '';
-                return html + `
-                    <div class="md-section">
-                        <div class="section-header">
-                            <h2>${text}</h2>
-                            <i data-lucide="plus" class="add-btn w-3.5 h-3.5" onclick="showQuickAdd('${text}')"></i>
-                        </div>
-                        <div id="add-form-${text.replace(/\s+/g, '-')}" class="quick-add-form space-y-2">
-                            <input type="text" placeholder="Name" class="w-full bg-slate-800 text-[10px] p-1 rounded border border-slate-600 q-name">
-                            <input type="text" placeholder="URL" class="w-full bg-slate-800 text-[10px] p-1 rounded border border-slate-600 q-url">
-                            <div class="flex space-x-2">
-                                <button onclick="addLink('${text}')" class="bg-cyan-700 px-2 py-0.5 rounded text-[10px]">Add</button>
-                                <button onclick="hideQuickAdd('${text}')" class="text-slate-500 text-[10px]">Cancel</button>
-                            </div>
-                        </div>`;
+                return html + `<div class="md-section"><h2>${text}</h2>`;
             }
             return `<h${level}>${text}</h${level}>`;
         };
 
-        // --- CALENDAR LOGIC ---
-        function toggleCalendarForm() {
-            const form = document.getElementById('calendar-form');
-            form.style.display = form.style.display === 'block' ? 'none' : 'block';
+        // --- IMPROVED TODO LOGIC ---
+        function parseTodos() {
+            const md = document.getElementById('markdown-input').value;
+            const taskSection = md.split('## TASKS')[1] || "";
+            const todoList = document.getElementById('todo-list');
+            todoList.innerHTML = '';
+
+            const lines = taskSection.split('\n');
+            let count = 0;
+            lines.forEach((line) => {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('- [ ]') || trimmed.startsWith('- [x]')) {
+                    count++;
+                    const isDone = trimmed.startsWith('- [x]');
+                    const taskText = trimmed.replace(/- \[[ x]\]/, '').trim();
+
+                    const div = document.createElement('div');
+                    div.className = `todo-item ${isDone ? 'done' : ''}`;
+                    // Use the text itself as a pseudo-identifier
+                    div.innerHTML = `
+                        <input type="checkbox" ${isDone ? 'checked' : ''} onclick="toggleTodo(this, '${taskText.replace(/'/g, "\\'")}')">
+                        <span>${taskText}</span>
+                    `;
+                    todoList.appendChild(div);
+                }
+            });
+            document.getElementById('task-count').textContent = count;
         }
 
-        function saveCalendar() {
-            const input = document.getElementById('gcal-input').value;
-            let finalUrl = "";
-
-            if (input.includes('src=')) {
-                // Extract URL from iframe string
-                const match = input.match(/src="([^"]+)"/);
-                finalUrl = match ? match[1] : "";
-            } else {
-                finalUrl = input; // Assume it's a direct URL
-            }
-
-            if (finalUrl) {
-                localStorage.setItem('gcalUrl', finalUrl);
-                loadCalendar(finalUrl);
-                toggleCalendarForm();
-            }
-        }
-
-        function loadCalendar(url) {
-            const iframe = document.getElementById('gcal-frame');
-            const placeholder = document.getElementById('gcal-placeholder');
-            if (url && url !== "about:blank") {
-                iframe.src = url;
-                iframe.style.display = "block";
-                placeholder.style.display = "none";
-            } else {
-                iframe.style.display = "none";
-                placeholder.style.display = "flex";
-            }
-        }
-
-        // --- APP LOGIC ---
-        function renderMarkdown(text) {
-            sectionIndex = 0;
-            document.getElementById('md-render').innerHTML = marked.parse(text, { renderer: renderer }) + '</div>';
-            lucide.createIcons();
-        }
-
-        function addLink(sectionTitle) {
-            const safeTitle = sectionTitle.replace(/\s+/g, '-');
-            const form = document.getElementById(`add-form-${safeTitle}`);
-            const name = form.querySelector('.q-name').value;
-            const url = form.querySelector('.q-url').value;
-            if (!name || !url) return;
-
+        function toggleTodo(el, taskText) {
             let md = document.getElementById('markdown-input').value;
-            const lines = md.split('\n');
-            let newLines = [];
-            let found = false;
+            const parts = md.split('## TASKS');
+            if (parts.length < 2) return;
 
+            let lines = parts[1].split('\n');
             for (let i = 0; i < lines.length; i++) {
-                newLines.push(lines[i]);
-                if (lines[i].includes(`## ${sectionTitle}`)) found = true;
-                if (found && (i === lines.length - 1 || (lines[i+1].startsWith('##')))) {
-                    newLines.push(`- [${name}](${url})`);
-                    found = false;
+                if (lines[i].includes(taskText)) {
+                    if (el.checked) {
+                        lines[i] = lines[i].replace('[ ]', '[x]');
+                    } else {
+                        lines[i] = lines[i].replace('[x]', '[ ]');
+                    }
+                    break;
                 }
             }
-            const updatedMd = newLines.join('\n');
-            document.getElementById('markdown-input').value = updatedMd;
-            localStorage.setItem('homepageData', updatedMd);
-            renderMarkdown(updatedMd);
+
+            const updatedMd = parts[0] + '## TASKS' + lines.join('\n');
+            saveSilent(updatedMd);
         }
 
-        function showQuickAdd(title) { document.getElementById(`add-form-${title.replace(/\s+/g, '-')}`).style.display = 'block'; }
-        function hideQuickAdd(title) { document.getElementById(`add-form-${title.replace(/\s+/g, '-')}`).style.display = 'none'; }
+        document.getElementById('todo-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.target.value.trim() !== "") {
+                let md = document.getElementById('markdown-input').value;
+                if (!md.includes('## TASKS')) md += '\n\n## TASKS';
 
-        // Init
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedData = localStorage.getItem('homepageData') || "# Welcome\n## Links\n- [Example](https://example.com)";
-            const savedCal = localStorage.getItem('gcalUrl');
-
-            document.getElementById('markdown-input').value = savedData;
-            renderMarkdown(savedData);
-            loadCalendar(savedCal);
-
-            setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB'); }, 1000);
-            renderCalendars();
-        });
-
-        // Search & Other Logic (Same as before)
-        const cmdInput = document.getElementById('cmd-input');
-        cmdInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase().trim();
-            const links = document.querySelectorAll('#md-render a');
-            const sections = document.querySelectorAll('.md-section');
-            links.forEach(l => l.textContent.toLowerCase().includes(query) && query !== "" ? l.classList.add('match') : l.classList.remove('match'));
-            sections.forEach(s => s.querySelector('.match') || query === "" ? s.classList.remove('dimmed') : s.classList.add('dimmed'));
-        });
-        cmdInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                const match = document.querySelector('#md-render a.match');
-                if (match) { window.open(match.href, '_blank'); cmdInput.value = ""; renderMarkdown(document.getElementById('markdown-input').value); }
+                const updatedMd = md.trim() + `\n- [ ] ${e.target.value.trim()}`;
+                e.target.value = '';
+                saveSilent(updatedMd);
             }
         });
+
+        function saveSilent(newMd) {
+            document.getElementById('markdown-input').value = newMd;
+            localStorage.setItem('homepageData', newMd);
+            renderMarkdown(newMd);
+            parseTodos();
+        }
+
+        // --- CORE RENDER ---
+        function renderMarkdown(text) {
+            sectionIndex = 0;
+            const dashboardContent = text.split('## TASKS')[0];
+            document.getElementById('md-render').innerHTML = marked.parse(dashboardContent, { renderer: renderer }) + '</div>';
+            lucide.createIcons();
+        }
 
         function toggleEditor() {
             document.getElementById('render-container').classList.toggle('hidden');
             document.getElementById('editor-container').classList.toggle('hidden');
         }
+
         function saveContent() {
-            const val = document.getElementById('markdown-input').value;
-            localStorage.setItem('homepageData', val);
-            renderMarkdown(val); toggleEditor();
+            saveSilent(document.getElementById('markdown-input').value);
+            toggleEditor();
         }
+
         function downloadMarkdown() {
             const blob = new Blob([document.getElementById('markdown-input').value], { type: 'text/markdown' });
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'hub.md'; a.click();
         }
+
         function renderCalendars() {
             const container = document.getElementById('calendars-container');
             container.innerHTML = '';
@@ -255,17 +210,49 @@
                 const d = new Date(); d.setMonth(d.getMonth() + i);
                 const wrap = document.createElement('div');
                 wrap.className = 'p-2 bg-slate-900/40 rounded border border-slate-800';
-                wrap.innerHTML = `<div class="text-[9px] font-bold text-slate-500 mb-1 uppercase">${d.toLocaleString('default', { month: 'short' })} ${d.getFullYear()}</div>`;
+                wrap.innerHTML = `<div class="text-[9px] font-bold text-slate-500 mb-1 uppercase tracking-tighter">${d.toLocaleString('default', { month: 'short' })} ${d.getFullYear()}</div>`;
                 const grid = document.createElement('div');
                 grid.className = 'calendar-grid';
-                ['S','M','T','W','T','F','S'].forEach(day => grid.innerHTML += `<div class="text-slate-700">${day}</div>`);
+                ['S','M','T','W','T','F','S'].forEach(day => grid.innerHTML += `<div class="text-slate-800 font-bold">${day}</div>`);
                 const first = new Date(d.getFullYear(), d.getMonth(), 1).getDay();
                 const days = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
                 for (let j = 0; j < first; j++) grid.innerHTML += '<div></div>';
-                for (let day = 1; day <= days; day++) grid.innerHTML += `<div class="${(i===0 && day===new Date().getDate()) ? 'curr-day' : 'text-slate-500'}">${day}</div>`;
+                for (let day = 1; day <= days; day++) grid.innerHTML += `<div class="${(i===0 && day===new Date().getDate()) ? 'curr-day' : 'text-slate-600'}">${day}</div>`;
                 wrap.appendChild(grid); container.appendChild(wrap);
             }
         }
+
+        // --- COMMAND LINE SEARCH ---
+        const cmdInput = document.getElementById('cmd-input');
+        cmdInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            const links = document.querySelectorAll('#md-render a');
+            const sections = document.querySelectorAll('.md-section');
+            if (query === "") {
+                links.forEach(l => l.classList.remove('match'));
+                sections.forEach(s => s.classList.remove('dimmed'));
+                return;
+            }
+            links.forEach(l => l.textContent.toLowerCase().includes(query) ? l.classList.add('match') : l.classList.remove('match'));
+            sections.forEach(s => s.querySelector('.match') ? s.classList.remove('dimmed') : s.classList.add('dimmed'));
+        });
+
+        cmdInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const match = document.querySelector('#md-render a.match');
+                if (match) { window.open(match.href, '_blank'); cmdInput.value = ""; saveSilent(document.getElementById('markdown-input').value); }
+            }
+        });
+
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedData = localStorage.getItem('homepageData') || "# Welcome\n## Links\n- [Sample](https://google.com)\n\n## TASKS\n- [ ] This is a task";
+            document.getElementById('markdown-input').value = savedData;
+            renderMarkdown(savedData);
+            parseTodos();
+            setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB'); }, 1000);
+            renderCalendars();
+        });
     </script>
 </body>
 </html>
