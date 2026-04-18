@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arvind's Hub OS | v3</title>
+    <title>Arvind's Hub OS | v4</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -30,7 +30,7 @@
             letter-spacing: 0.05em; border-left: 3px solid; padding-left: 0.5rem; margin: 0;
         }
 
-        /* Section Accent Colors */
+        /* Accents */
         .md-section:nth-of-type(4n+1) h2 { border-color: #2ed8a2; color: #2ed8a2; }
         .md-section:nth-of-type(4n+2) h2 { border-color: #d1aff8; color: #d1aff8; }
         .md-section:nth-of-type(4n+3) h2 { border-color: #ec6183; color: #ec6183; }
@@ -38,24 +38,20 @@
 
         #md-render ul { list-style: none; padding: 0; }
         #md-render li { margin-bottom: 0.25rem; font-size: 0.75rem; }
-
-        #md-render a {
-            color: #97989d; text-decoration: none; display: block;
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-            padding: 2px 4px; border-radius: 4px;
-        }
-
+        #md-render a { color: #97989d; text-decoration: none; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 4px; border-radius: 4px; }
         #md-render a.match { color: #fff; background: #2bc3de44; border-left: 2px solid #2bc3de; transform: translateX(4px); }
         .dimmed { opacity: 0.15; filter: blur(1px); }
 
-        /* Quick Add Styles */
-        .add-btn { opacity: 0; transition: opacity 0.2s; color: #475569; cursor: pointer; }
-        .md-section:hover .add-btn { opacity: 1; }
-        .add-btn:hover { color: #fff; }
+        .add-btn { opacity: 0.4; transition: opacity 0.2s; cursor: pointer; }
+        .add-btn:hover { opacity: 1; color: #fff; }
 
-        .quick-add-form { background: #1e293b; padding: 8px; border-radius: 6px; margin-top: 8px; display: none; border: 1px solid #334155; }
+        .quick-add-form, #calendar-form { background: #1e293b; padding: 8px; border-radius: 6px; margin-top: 8px; display: none; border: 1px solid #334155; }
+
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; font-size: 0.6rem; text-align: center; }
         .curr-day { background: #2bc3de; color: #0b0f1a; border-radius: 2px; font-weight: bold; }
+
+        /* The magical Dark Mode filter for GCal */
+        #gcal-frame { filter: invert(0.9) contrast(1.2) hue-rotate(180deg); }
     </style>
 </head>
 <body class="flex flex-col">
@@ -63,7 +59,7 @@
     <header class="flex justify-between items-center px-4 py-2 border-b border-slate-800 bg-slate-950">
         <div class="flex items-center space-x-6 flex-1">
             <span class="text-[#2ed8a2] font-bold tracking-tighter text-sm whitespace-nowrap">HUB_OS // ARVIND</span>
-            <div class="relative w-full max-w-md group">
+            <div class="relative w-full max-w-md">
                 <i data-lucide="terminal" class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500"></i>
                 <input type="text" id="cmd-input" placeholder="Type shortcut (e.g. a/pra)..." class="w-full bg-slate-900/50 border border-slate-700 rounded-md py-1.5 pl-10 pr-4 text-xs font-mono text-cyan-400 focus:outline-none focus:border-cyan-500/50 transition-all">
             </div>
@@ -78,10 +74,26 @@
     <main class="flex-1 grid grid-cols-12 overflow-hidden">
         <aside class="col-span-2 border-r border-slate-800 p-3 space-y-3 overflow-y-auto bg-slate-950/30">
             <div id="calendars-container" class="space-y-3"></div>
+
             <div class="pt-3 border-t border-slate-800">
-                <h3 class="text-[9px] font-bold text-slate-600 uppercase mb-2">Schedule</h3>
-                <div class="w-full h-48 bg-slate-900/50 rounded border border-slate-800">
-                    <iframe src="about:blank" style="border-width:0; filter: invert(0.9) contrast(1.2) hue-rotate(180deg);" width="100%" height="100%" frameborder="0"></iframe>
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-[9px] font-bold text-slate-600 uppercase">Schedule</h3>
+                    <i data-lucide="plus" class="add-btn w-3 h-3" onclick="toggleCalendarForm()"></i>
+                </div>
+
+                <div id="calendar-form" class="mb-3 space-y-2">
+                    <textarea id="gcal-input" placeholder="Paste <iframe> or URL here..." class="w-full bg-slate-800 text-[10px] p-2 rounded border border-slate-600 outline-none h-16 text-slate-300"></textarea>
+                    <div class="flex space-x-2">
+                        <button onclick="saveCalendar()" class="bg-cyan-700 px-2 py-1 rounded text-[10px]">Save Cal</button>
+                        <button onclick="toggleCalendarForm()" class="text-slate-500 text-[10px]">Cancel</button>
+                    </div>
+                </div>
+
+                <div class="w-full h-56 bg-slate-900/50 rounded border border-slate-800 overflow-hidden relative">
+                    <iframe id="gcal-frame" src="about:blank" style="border-width:0" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
+                    <div id="gcal-placeholder" class="absolute inset-0 flex items-center justify-center text-[9px] text-slate-600 text-center p-4">
+                        Click + to link Google Calendar
+                    </div>
                 </div>
             </div>
         </aside>
@@ -96,49 +108,73 @@
     </main>
 
     <script>
-        // Custom Markdown Parsing with Header Buttons
         const renderer = new marked.Renderer();
         let sectionIndex = 0;
 
         renderer.heading = function(text, level) {
             if (level === 2) {
-                const id = `section-${sectionIndex++}`;
-                let html = (sectionIndex > 1) ? '</div>' : '';
+                let html = (sectionIndex++ > 0) ? '</div>' : '';
                 return html + `
-                    <div class="md-section" data-title="${text}">
+                    <div class="md-section">
                         <div class="section-header">
                             <h2>${text}</h2>
                             <i data-lucide="plus" class="add-btn w-3.5 h-3.5" onclick="showQuickAdd('${text}')"></i>
                         </div>
                         <div id="add-form-${text.replace(/\s+/g, '-')}" class="quick-add-form space-y-2">
-                            <input type="text" placeholder="Name" class="w-full bg-slate-800 text-[10px] p-1 rounded border border-slate-600 outline-none q-name">
-                            <input type="text" placeholder="URL" class="w-full bg-slate-800 text-[10px] p-1 rounded border border-slate-600 outline-none q-url">
+                            <input type="text" placeholder="Name" class="w-full bg-slate-800 text-[10px] p-1 rounded border border-slate-600 q-name">
+                            <input type="text" placeholder="URL" class="w-full bg-slate-800 text-[10px] p-1 rounded border border-slate-600 q-url">
                             <div class="flex space-x-2">
                                 <button onclick="addLink('${text}')" class="bg-cyan-700 px-2 py-0.5 rounded text-[10px]">Add</button>
                                 <button onclick="hideQuickAdd('${text}')" class="text-slate-500 text-[10px]">Cancel</button>
                             </div>
-                        </div>
-                `;
+                        </div>`;
             }
             return `<h${level}>${text}</h${level}>`;
         };
 
+        // --- CALENDAR LOGIC ---
+        function toggleCalendarForm() {
+            const form = document.getElementById('calendar-form');
+            form.style.display = form.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function saveCalendar() {
+            const input = document.getElementById('gcal-input').value;
+            let finalUrl = "";
+
+            if (input.includes('src=')) {
+                // Extract URL from iframe string
+                const match = input.match(/src="([^"]+)"/);
+                finalUrl = match ? match[1] : "";
+            } else {
+                finalUrl = input; // Assume it's a direct URL
+            }
+
+            if (finalUrl) {
+                localStorage.setItem('gcalUrl', finalUrl);
+                loadCalendar(finalUrl);
+                toggleCalendarForm();
+            }
+        }
+
+        function loadCalendar(url) {
+            const iframe = document.getElementById('gcal-frame');
+            const placeholder = document.getElementById('gcal-placeholder');
+            if (url && url !== "about:blank") {
+                iframe.src = url;
+                iframe.style.display = "block";
+                placeholder.style.display = "none";
+            } else {
+                iframe.style.display = "none";
+                placeholder.style.display = "flex";
+            }
+        }
+
+        // --- APP LOGIC ---
         function renderMarkdown(text) {
             sectionIndex = 0;
-            const container = document.getElementById('md-render');
-            container.innerHTML = marked.parse(text, { renderer: renderer }) + '</div>';
+            document.getElementById('md-render').innerHTML = marked.parse(text, { renderer: renderer }) + '</div>';
             lucide.createIcons();
-        }
-
-        // Quick Add Logic
-        function showQuickAdd(title) {
-            const safeTitle = title.replace(/\s+/g, '-');
-            document.getElementById(`add-form-${safeTitle}`).style.display = 'block';
-        }
-
-        function hideQuickAdd(title) {
-            const safeTitle = title.replace(/\s+/g, '-');
-            document.getElementById(`add-form-${safeTitle}`).style.display = 'none';
         }
 
         function addLink(sectionTitle) {
@@ -146,7 +182,6 @@
             const form = document.getElementById(`add-form-${safeTitle}`);
             const name = form.querySelector('.q-name').value;
             const url = form.querySelector('.q-url').value;
-
             if (!name || !url) return;
 
             let md = document.getElementById('markdown-input').value;
@@ -156,38 +191,43 @@
 
             for (let i = 0; i < lines.length; i++) {
                 newLines.push(lines[i]);
-                // If this is the section we want, and either next line is a new section or end of file
-                if (lines[i].includes(`## ${sectionTitle}`)) {
-                    found = true;
-                }
-                // Insert at the end of the current section's list
+                if (lines[i].includes(`## ${sectionTitle}`)) found = true;
                 if (found && (i === lines.length - 1 || (lines[i+1].startsWith('##')))) {
                     newLines.push(`- [${name}](${url})`);
                     found = false;
                 }
             }
-
             const updatedMd = newLines.join('\n');
             document.getElementById('markdown-input').value = updatedMd;
             localStorage.setItem('homepageData', updatedMd);
             renderMarkdown(updatedMd);
         }
 
-        // Command Line Logic
+        function showQuickAdd(title) { document.getElementById(`add-form-${title.replace(/\s+/g, '-')}`).style.display = 'block'; }
+        function hideQuickAdd(title) { document.getElementById(`add-form-${title.replace(/\s+/g, '-')}`).style.display = 'none'; }
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedData = localStorage.getItem('homepageData') || "# Welcome\n## Links\n- [Example](https://example.com)";
+            const savedCal = localStorage.getItem('gcalUrl');
+
+            document.getElementById('markdown-input').value = savedData;
+            renderMarkdown(savedData);
+            loadCalendar(savedCal);
+
+            setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB'); }, 1000);
+            renderCalendars();
+        });
+
+        // Search & Other Logic (Same as before)
         const cmdInput = document.getElementById('cmd-input');
         cmdInput.addEventListener('input', (e) => {
             const query = e.target.value.toLowerCase().trim();
             const links = document.querySelectorAll('#md-render a');
             const sections = document.querySelectorAll('.md-section');
-            if (query === "") {
-                links.forEach(l => l.classList.remove('match'));
-                sections.forEach(s => s.classList.remove('dimmed'));
-                return;
-            }
-            links.forEach(l => l.textContent.toLowerCase().includes(query) ? l.classList.add('match') : l.classList.remove('match'));
-            sections.forEach(s => s.querySelector('.match') ? s.classList.remove('dimmed') : s.classList.add('dimmed'));
+            links.forEach(l => l.textContent.toLowerCase().includes(query) && query !== "" ? l.classList.add('match') : l.classList.remove('match'));
+            sections.forEach(s => s.querySelector('.match') || query === "" ? s.classList.remove('dimmed') : s.classList.add('dimmed'));
         });
-
         cmdInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 const match = document.querySelector('#md-render a.match');
@@ -199,28 +239,15 @@
             document.getElementById('render-container').classList.toggle('hidden');
             document.getElementById('editor-container').classList.toggle('hidden');
         }
-
         function saveContent() {
             const val = document.getElementById('markdown-input').value;
             localStorage.setItem('homepageData', val);
-            renderMarkdown(val);
-            toggleEditor();
+            renderMarkdown(val); toggleEditor();
         }
-
         function downloadMarkdown() {
             const blob = new Blob([document.getElementById('markdown-input').value], { type: 'text/markdown' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob); a.download = 'arvind-hub.md'; a.click();
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'hub.md'; a.click();
         }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedData = localStorage.getItem('homepageData') || "# Arvind Hub\n## Links\n- [Google](https://google.com)";
-            document.getElementById('markdown-input').value = savedData;
-            renderMarkdown(savedData);
-            setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB'); }, 1000);
-            renderCalendars();
-        });
-
         function renderCalendars() {
             const container = document.getElementById('calendars-container');
             container.innerHTML = '';
@@ -228,17 +255,14 @@
                 const d = new Date(); d.setMonth(d.getMonth() + i);
                 const wrap = document.createElement('div');
                 wrap.className = 'p-2 bg-slate-900/40 rounded border border-slate-800';
-                wrap.innerHTML = `<div class="text-[9px] font-bold text-slate-500 mb-1 uppercase tracking-tighter">${d.toLocaleString('default', { month: 'short' })} ${d.getFullYear()}</div>`;
+                wrap.innerHTML = `<div class="text-[9px] font-bold text-slate-500 mb-1 uppercase">${d.toLocaleString('default', { month: 'short' })} ${d.getFullYear()}</div>`;
                 const grid = document.createElement('div');
                 grid.className = 'calendar-grid';
                 ['S','M','T','W','T','F','S'].forEach(day => grid.innerHTML += `<div class="text-slate-700">${day}</div>`);
                 const first = new Date(d.getFullYear(), d.getMonth(), 1).getDay();
                 const days = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
                 for (let j = 0; j < first; j++) grid.innerHTML += '<div></div>';
-                for (let day = 1; day <= days; day++) {
-                    const isToday = i === 0 && day === new Date().getDate();
-                    grid.innerHTML += `<div class="${isToday ? 'curr-day' : 'text-slate-500'}">${day}</div>`;
-                }
+                for (let day = 1; day <= days; day++) grid.innerHTML += `<div class="${(i===0 && day===new Date().getDate()) ? 'curr-day' : 'text-slate-500'}">${day}</div>`;
                 wrap.appendChild(grid); container.appendChild(wrap);
             }
         }
