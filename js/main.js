@@ -92,6 +92,14 @@ function init() {
   todos.bindInput();
   dashboard.setupSearch(cmdInputEl);
 
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+    if (document.activeElement === cmdInputEl) return;
+    e.preventDefault();
+    cmdInputEl.focus();
+    cmdInputEl.select();
+  });
+
   const savedData = localStorage.getItem(MARKDOWN_STORAGE_KEY) || DEFAULT_MARKDOWN;
   lastSavedMarkdown = savedData;
   markdownInputEl.value = savedData;
