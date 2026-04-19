@@ -56,6 +56,7 @@ function init() {
     localStorage.setItem(MARKDOWN_STORAGE_KEY, newMd);
     dashboard.renderMarkdown(newMd);
     todos.parseTodos();
+    renderCalendars(calendarContainerEl, todos.getDueTasks());
   }
 
   function saveContent() {
@@ -99,7 +100,7 @@ function init() {
   todos.parseTodos();
 
   startClock(clockEl);
-  renderCalendars(calendarContainerEl);
+  renderCalendars(calendarContainerEl, todos.getDueTasks());
 }
 
 document.addEventListener("DOMContentLoaded", init);
