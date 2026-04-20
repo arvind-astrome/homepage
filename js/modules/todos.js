@@ -196,6 +196,7 @@ export function createTodoManager({
     const taskSection = md.split("## TASKS")[1] || "";
     todoListEl.innerHTML = "";
     _parsedDueTasks = [];
+    const todayStr = new Date().toISOString().slice(0, 10);
 
     const lines = taskSection.split("\n");
     let count = 0;
@@ -221,18 +222,48 @@ export function createTodoManager({
       return 0;
     });
 
-    taskItems.forEach(({ lineIndex, isDone, rawText, dueDate }) => {
+    const todayTasks = [];
+    const otherTasks = [];
+    const completedTasks = [];
+
+    taskItems.forEach((task) => {
+      if (task.isDone) {
+        completedTasks.push(task);
+      } else if (task.dueDate === todayStr) {
+        todayTasks.push(task);
+      } else {
+        otherTasks.push(task);
+      }
+    });
+
+    function renderSectionDivider(label) {
+      const divider = document.createElement("div");
+      divider.className = "todo-section-divider";
+
+      const text = document.createElement("span");
+      text.className = "todo-section-label";
+      text.textContent = label;
+      divider.appendChild(text);
+
+      todoListEl.appendChild(divider);
+    }
+
+    function renderTask({ lineIndex, isDone, rawText, dueDate }) {
       count++;
       const taskText = rawText.replace(DATE_RE, "").trim();
       const isEditing = editingLineIndex === lineIndex;
       const matchedTag = taskText.match(/#[a-zA-Z0-9_-]+/);
       const tag = matchedTag ? matchedTag[0] : "";
       const tagColor = tag ? getTagColor(tag.toLowerCase()) : "";
+      const isTodayTask = dueDate === todayStr;
 
       _parsedDueTasks.push({ text: rawText.replace(DATE_RE, "").replace(/#[a-zA-Z0-9_-]+/, "").trim(), date: dueDate, isDone });
 
       const div = document.createElement("div");
       div.className = `todo-item ${isDone ? "done" : ""}`;
+      if (isTodayTask) {
+        div.classList.add("is-today");
+      }
       if (tagColor) {
         div.classList.add("tagged");
         div.style.setProperty("--tag-color", tagColor);
@@ -323,7 +354,6 @@ export function createTodoManager({
       inner.className = "todo-inner";
       inner.appendChild(textNode);
       if (dueDate && !isEditing) {
-        const todayStr = new Date().toISOString().slice(0, 10);
         const dateLabel = document.createElement("span");
         dateLabel.className = "todo-due-label" + (dueDate < todayStr ? " overdue" : dueDate === todayStr ? " due-today" : "");
         dateLabel.textContent = dueDate;
@@ -343,7 +373,22 @@ export function createTodoManager({
           input.select();
         }, 0);
       }
-    });
+    }
+
+    if (todayTasks.length > 0) {
+      renderSectionDivider("TODAY");
+      todayTasks.forEach(renderTask);
+    }
+
+    if (otherTasks.length > 0) {
+      renderSectionDivider("OTHER");
+      otherTasks.forEach(renderTask);
+    }
+
+    if (completedTasks.length > 0) {
+      renderSectionDivider("COMPLETED");
+      completedTasks.forEach(renderTask);
+    }
 
     taskCountEl.textContent = String(count);
   }
