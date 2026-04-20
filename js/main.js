@@ -92,6 +92,39 @@ function init() {
   todos.bindInput();
   dashboard.setupSearch(cmdInputEl);
 
+  // Drawer (mobile sidebar) toggle
+  const drawerToggleBtn = document.getElementById("drawer-toggle");
+  const sidebar = document.getElementById("sidebar");
+  const drawerOverlay = document.getElementById("drawer-overlay");
+
+  function openDrawer() {
+    sidebar.classList.add("drawer-open");
+    drawerOverlay.classList.add("active");
+  }
+
+  function closeDrawer() {
+    sidebar.classList.remove("drawer-open");
+    drawerOverlay.classList.remove("active");
+  }
+
+  if (drawerToggleBtn && sidebar && drawerOverlay) {
+    drawerToggleBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      sidebar.classList.contains("drawer-open") ? closeDrawer() : openDrawer();
+    });
+    drawerOverlay.addEventListener("click", closeDrawer);
+
+    // Keep drawer state sane when switching between breakpoints.
+    window.addEventListener("resize", () => {
+      if (window.innerWidth > 767) closeDrawer();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeDrawer();
+    });
+  }
+
   document.addEventListener("keydown", (e) => {
     if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
     if (document.activeElement === cmdInputEl) return;
