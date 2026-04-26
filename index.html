@@ -189,6 +189,57 @@
         }
         .main-title-input:focus { border-color: #475569; }
 
+        .auth-gate {
+            position: fixed;
+            inset: 0;
+            z-index: 1200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at 20% 20%, rgba(43, 195, 222, 0.16), transparent 40%), rgba(2, 6, 23, 0.92);
+            padding: 1rem;
+        }
+        .auth-gate.hidden { display: none; }
+        .auth-gate-card {
+            width: min(92vw, 420px);
+            border: 1px solid #1e293b;
+            background: rgba(15, 23, 42, 0.92);
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+        }
+        .auth-gate-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #dbeafe;
+            margin-bottom: 0.35rem;
+            letter-spacing: 0.02em;
+        }
+        .auth-gate-message {
+            font-size: 0.72rem;
+            color: #94a3b8;
+            line-height: 1.55;
+            margin-bottom: 0.9rem;
+        }
+        .auth-gate-btn {
+            width: 100%;
+            border: 1px solid #155e75;
+            background: rgba(8, 145, 178, 0.2);
+            color: #67e8f9;
+            border-radius: 8px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 0.55rem 0.75rem;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .auth-gate-btn:hover {
+            border-color: #0e7490;
+            background: rgba(14, 116, 144, 0.3);
+            color: #a5f3fc;
+        }
+        .auth-gate-btn.hidden { display: none; }
+
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
 
@@ -272,6 +323,14 @@
     </style>
 </head>
 <body class="flex flex-col">
+
+    <div id="auth-gate" class="auth-gate">
+        <div class="auth-gate-card">
+            <h2 class="auth-gate-title">Private Workspace</h2>
+            <p id="auth-gate-message" class="auth-gate-message">Sign in to load your private dashboard data.</p>
+            <button id="auth-signin-btn" class="auth-gate-btn">Sign in with Google</button>
+        </div>
+    </div>
 
     <div id="drawer-overlay"></div>
 
