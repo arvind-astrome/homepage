@@ -2,39 +2,141 @@ import { setupEditableTitle } from "./modules/title.js";
 import { renderCalendars, startClock } from "./modules/calendars.js";
 import { createDashboard } from "./modules/dashboard.js";
 import { createTodoManager } from "./modules/todos.js";
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import {
-  getAuth,
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  signInWithPopup,
-  signInWithRedirect,
-  signOut,
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import {
-  doc,
-  getDoc,
-  getFirestore,
-  serverTimestamp,
-  setDoc,
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const TITLE_STORAGE_KEY = "homepageTitle";
 const DEFAULT_APP_TITLE = "HUB_OS // ARVIND";
 const DEFAULT_MARKDOWN = "# Welcome\n## Links\n- [Sample](https://google.com)\n\n## TASKS\n- [ ] This is a task";
+const JSONBIN_API_BASE = "https://api.jsonbin.io/v3";
+const JSONBIN_ACCESS_KEY_STORAGE_KEY = "homepageJsonBinAccessKey";
+const JSONBIN_BIN_ID_STORAGE_KEY = "homepageJsonBinId";
+const LEGACY_MARKDOWN_STORAGE_KEYS = [
+  "homepageMarkdown",
+  "hubMarkdown",
+  "dashboardMarkdown",
+  "markdown",
+  "homePageMarkdown",
+  "hubosMarkdown",
+];
 
-// Fill this with your Firebase Web app config from Firebase Console.
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDftd8lJQb1XDGUNZxIHZ99r4P55V2G6tU",
-  authDomain: "homepage-e11f0.firebaseapp.com",
-  projectId: "homepage-e11f0",
-  storageBucket: "homepage-e11f0.firebasestorage.app",
-  messagingSenderId: "298196620750",
-  appId: "1:298196620750:web:85703126d3390f3a8ac79f"
-};
+function getStoredJsonBinAccessKey() {
+  return (localStorage.getItem(JSONBIN_ACCESS_KEY_STORAGE_KEY) || "").trim();
+}
 
-// Use your Firebase Auth UID (from Authentication > Users).
-const OWNER_UID = "REPLACE_WITH_OWNER_UID";
+function requestJsonBinAccessKey() {
+  const entered = window.prompt("Enter your JSONBin Access Key");
+  if (!entered) return "";
+
+  return entered.trim();
+}
+
+function requestJsonBinMasterKey() {
+  const entered = window.prompt("Enter your JSONBin Master Key (used only once to create/seed a bin)");
+  if (!entered) return "";
+  return entered.trim();
+}
+
+function requestJsonBinSyncToken() {
+  const entered = window.prompt("Enter JSONBin sync token (BIN_ID:ACCESS_KEY)");
+  if (!entered) return "";
+  return entered.trim();
+}
+
+function parseSyncToken(token) {
+  const parts = token.split(":");
+  if (parts.length < 2) return null;
+
+  const binId = parts[0].trim();
+  const accessKey = parts.slice(1).join(":").trim();
+  if (!binId || !accessKey) return null;
+  return { binId, accessKey };
+}
+
+function persistConnection(binId, accessKey) {
+  localStorage.setItem(JSONBIN_BIN_ID_STORAGE_KEY, binId);
+  localStorage.setItem(JSONBIN_ACCESS_KEY_STORAGE_KEY, accessKey);
+}
+
+async function jsonBinRequest(path, auth, options = {}) {
+  const { method = "GET", body, extraHeaders = {} } = options;
+  const authHeader = auth?.masterKey
+    ? { "X-Master-Key": auth.masterKey }
+    : auth?.accessKey
+      ? { "X-Access-Key": auth.accessKey }
+      : {};
+  const headers = {
+    "Content-Type": "application/json",
+    ...authHeader,
+    ...extraHeaders,
+  };
+
+  const response = await fetch(`${JSONBIN_API_BASE}${path}`, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch (_) {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    const message = payload?.message || payload?.error || `HTTP ${response.status}`;
+    throw new Error(message);
+  }
+
+  return payload;
+}
+
+function getLegacyMarkdownFromLocalStorage() {
+  for (const key of LEGACY_MARKDOWN_STORAGE_KEYS) {
+    const value = localStorage.getItem(key);
+    if (typeof value === "string" && value.trim()) {
+      return value;
+    }
+  }
+
+  const legacyJsonKeys = ["homepageData", "hubData", "dashboardData"];
+  for (const key of legacyJsonKeys) {
+    const raw = localStorage.getItem(key);
+    if (!raw) continue;
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed?.markdown === "string" && parsed.markdown.trim()) {
+        return parsed.markdown;
+      }
+    } catch (_) {
+      // Ignore invalid legacy JSON payloads.
+    }
+  }
+
+  return "";
+}
+
+async function ensureJsonBin(key, initialMarkdown) {
+  const created = await jsonBinRequest("/b", { masterKey: key }, {
+    method: "POST",
+    body: {
+      markdown: initialMarkdown || DEFAULT_MARKDOWN,
+      updatedAt: new Date().toISOString(),
+      migratedFromLocalStorage: Boolean(initialMarkdown),
+    },
+    extraHeaders: {
+      "X-Bin-Name": "homepage-dashboard",
+      "X-Bin-Private": "true",
+    },
+  });
+
+  const createdBinId = created?.metadata?.id;
+  if (!createdBinId) {
+    throw new Error("Could not create JSONBin record");
+  }
+
+  return createdBinId;
+}
 
 function init() {
   const appTitleEl = document.getElementById("app-title");
@@ -60,8 +162,8 @@ function init() {
   const authGateMessageEl = document.getElementById("auth-gate-message");
   const authSigninBtn = document.getElementById("auth-signin-btn");
 
-  const firebaseConfigured = FIREBASE_CONFIG.projectId !== "REPLACE_ME" && OWNER_UID !== "REPLACE_WITH_OWNER_UID";
-  let remoteDocRef = null;
+  let remoteBinId = "";
+  let currentJsonBinAccessKey = "";
   let appHydrated = false;
   let saveTimer = null;
 
@@ -88,6 +190,7 @@ function init() {
 
   function setAuthGate(message, showButton = true) {
     authGateMessageEl.textContent = message;
+    authSigninBtn.textContent = "Connect JSONBin";
     authSigninBtn.classList.toggle("hidden", !showButton);
     authGateEl.classList.remove("hidden");
   }
@@ -97,18 +200,17 @@ function init() {
   }
 
   function queueRemoteSave(newMd) {
-    if (!remoteDocRef) return;
+    if (!currentJsonBinAccessKey || !remoteBinId) return;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
       try {
-        await setDoc(
-          remoteDocRef,
-          {
+        await jsonBinRequest(`/b/${remoteBinId}`, { accessKey: currentJsonBinAccessKey }, {
+          method: "PUT",
+          body: {
             markdown: newMd,
-            updatedAt: serverTimestamp(),
+            updatedAt: new Date().toISOString(),
           },
-          { merge: true },
-        );
+        });
       } catch (error) {
         console.error("Remote save failed", error);
       }
@@ -200,53 +302,19 @@ function init() {
 
   startClock(clockEl);
 
-  if (!firebaseConfigured) {
-    setAuthGate("Set FIREBASE_CONFIG and OWNER_UID in js/main.js to enable private remote storage.", false);
-    return;
-  }
-
-  const firebaseApp = initializeApp(FIREBASE_CONFIG);
-  const auth = getAuth(firebaseApp);
-  const db = getFirestore(firebaseApp);
-  const provider = new GoogleAuthProvider();
-
-  authSigninBtn.addEventListener("click", async () => {
+  async function hydrateFromJsonBin(binId, accessKey) {
     try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      const code = typeof error?.code === "string" ? error.code : "";
-      if (code.includes("popup") || code.includes("cancelled")) {
-        await signInWithRedirect(auth, provider);
-        return;
-      }
-      setAuthGate("Sign-in failed. Check Firebase Auth setup and authorized domains.");
-      console.error("Sign-in failed", error);
-    }
-  });
+      currentJsonBinAccessKey = accessKey;
+      remoteBinId = binId;
 
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      setAuthGate("Sign in with your owner Google account to access this private dashboard.");
-      return;
-    }
+      const remoteData = await jsonBinRequest(
+        `/b/${remoteBinId}/latest`,
+        { accessKey: currentJsonBinAccessKey },
+        { extraHeaders: { "X-Bin-Meta": "false" } },
+      );
 
-    if (user.uid !== OWNER_UID) {
-      setAuthGate("This account is not authorized for this workspace.", false);
-      setTimeout(() => signOut(auth), 300);
-      return;
-    }
-
-    hideAuthGate();
-
-    if (appHydrated) return;
-    appHydrated = true;
-
-    remoteDocRef = doc(db, "users", OWNER_UID, "private", "homepage");
-
-    try {
-      const snap = await getDoc(remoteDocRef);
-      const remoteMarkdown = snap.exists() && typeof snap.data().markdown === "string"
-        ? snap.data().markdown
+      const remoteMarkdown = typeof remoteData?.markdown === "string"
+        ? remoteData.markdown
         : DEFAULT_MARKDOWN;
 
       lastSavedMarkdown = remoteMarkdown;
@@ -255,15 +323,76 @@ function init() {
       todos.parseTodos();
       renderCalendars(calendarContainerEl, todos.getDueTasks());
 
-      if (!snap.exists()) {
-        queueRemoteSave(remoteMarkdown);
-      }
+      appHydrated = true;
+      hideAuthGate();
     } catch (error) {
-      console.error("Failed to load remote markdown", error);
-      setAuthGate("Could not load private data from Firestore. Check network and rules.", false);
+      console.error("Failed to load JSONBin data", error);
       appHydrated = false;
+      setAuthGate("Could not load private data from JSONBin. Check key/network and try again.");
     }
+  }
+
+  async function createSeededBinWithMasterKey() {
+    const masterKey = requestJsonBinMasterKey();
+    if (!masterKey) {
+      setAuthGate("Master key is only needed once to seed/create your bin.");
+      return;
+    }
+
+    const legacyMarkdown = getLegacyMarkdownFromLocalStorage();
+    const createdBinId = await ensureJsonBin(masterKey, legacyMarkdown);
+
+    const accessKey = requestJsonBinAccessKey();
+    if (!accessKey) {
+      setAuthGate("Access key is required for everyday sync after seeding.");
+      return;
+    }
+
+    persistConnection(createdBinId, accessKey);
+    window.alert(`JSONBin ready. Save this sync token for other devices:\n${createdBinId}:${accessKey}`);
+    await hydrateFromJsonBin(createdBinId, accessKey);
+  }
+
+  async function connectJsonBin() {
+    const syncToken = requestJsonBinSyncToken();
+    if (syncToken) {
+      const parsed = parseSyncToken(syncToken);
+      if (!parsed) {
+        setAuthGate("Invalid sync token format. Use BIN_ID:ACCESS_KEY.");
+        return;
+      }
+
+      persistConnection(parsed.binId, parsed.accessKey);
+      await hydrateFromJsonBin(parsed.binId, parsed.accessKey);
+      return;
+    }
+
+    const shouldSeed = window.confirm(
+      "No sync token entered. Create and seed a new JSONBin with your Master Key?",
+    );
+    if (!shouldSeed) {
+      setAuthGate("Enter sync token (BIN_ID:ACCESS_KEY) to connect this device.");
+      return;
+    }
+
+    await createSeededBinWithMasterKey();
+  }
+
+  authSigninBtn.addEventListener("click", async () => {
+    await connectJsonBin();
   });
+
+  const storedBinId = (localStorage.getItem(JSONBIN_BIN_ID_STORAGE_KEY) || "").trim();
+  const storedAccessKey = getStoredJsonBinAccessKey();
+
+  if (!storedBinId || !storedAccessKey) {
+    connectJsonBin();
+    setAuthGate("Connect using sync token (BIN_ID:ACCESS_KEY) or seed a new bin.");
+    return;
+  }
+
+  if (appHydrated) return;
+  hydrateFromJsonBin(storedBinId, storedAccessKey);
 }
 
 document.addEventListener("DOMContentLoaded", init);
