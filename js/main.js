@@ -6,9 +6,10 @@ import { createTodoManager } from "./modules/todos.js";
 const TITLE_STORAGE_KEY = "homepageTitle";
 const DEFAULT_APP_TITLE = "HUB_OS // ARVIND";
 const DEFAULT_MARKDOWN = "# Welcome\n## Links\n- [Sample](https://google.com)\n\n## TASKS\n- [ ] This is a task";
-const JSONBIN_API_BASE = "https://api.jsonbin.io/v3";
-const JSONBIN_ACCESS_KEY_STORAGE_KEY = "homepageJsonBinAccessKey";
-const JSONBIN_BIN_ID_STORAGE_KEY = "homepageJsonBinId";
+const PANTRY_API_BASE = "https://getpantry.cloud/apiv1";
+const PANTRY_ID_STORAGE_KEY = "homepagePantryId";
+const PANTRY_BASKET_STORAGE_KEY = "homepagePantryBasket";
+const DEFAULT_PANTRY_BASKET = "homepage-dashboard";
 const LEGACY_MARKDOWN_STORAGE_KEYS = [
   "homepageMarkdown",
   "hubMarkdown",
@@ -18,62 +19,64 @@ const LEGACY_MARKDOWN_STORAGE_KEYS = [
   "hubosMarkdown",
 ];
 
-function getStoredJsonBinAccessKey() {
-  return (localStorage.getItem(JSONBIN_ACCESS_KEY_STORAGE_KEY) || "").trim();
+function getStoredPantryId() {
+  return (localStorage.getItem(PANTRY_ID_STORAGE_KEY) || "").trim();
 }
 
-function requestJsonBinAccessKey() {
-  const entered = window.prompt("Enter your JSONBin Access Key");
-  if (!entered) return "";
-
-  return entered.trim();
+function getStoredPantryBasket() {
+  return (localStorage.getItem(PANTRY_BASKET_STORAGE_KEY) || "").trim();
 }
 
-function requestJsonBinMasterKey() {
-  const entered = window.prompt("Enter your JSONBin Master Key (used only once to create/seed a bin)");
+function requestPantryId() {
+  const entered = window.prompt("Enter your Pantry ID");
   if (!entered) return "";
   return entered.trim();
 }
 
-function requestJsonBinSyncToken() {
-  const entered = window.prompt("Enter JSONBin sync token (BIN_ID:ACCESS_KEY)");
+function requestPantrySyncToken() {
+  const entered = window.prompt("Enter Pantry sync token (PANTRY_ID[:BASKET_NAME])");
   if (!entered) return "";
   return entered.trim();
 }
 
-function parseSyncToken(token) {
+function requestPantryBasketName() {
+  const entered = window.prompt("Enter Pantry basket name (optional)", DEFAULT_PANTRY_BASKET);
+  if (!entered) return DEFAULT_PANTRY_BASKET;
+  return entered.trim() || DEFAULT_PANTRY_BASKET;
+}
+
+function parsePantrySyncToken(token) {
   const parts = token.split(":");
-  if (parts.length < 2) return null;
-
-  const binId = parts[0].trim();
-  const accessKey = parts.slice(1).join(":").trim();
-  if (!binId || !accessKey) return null;
-  return { binId, accessKey };
+  const pantryId = (parts[0] || "").trim();
+  const basketName = (parts[1] || DEFAULT_PANTRY_BASKET).trim() || DEFAULT_PANTRY_BASKET;
+  if (!pantryId) return null;
+  return { pantryId, basketName };
 }
 
-function persistConnection(binId, accessKey) {
-  localStorage.setItem(JSONBIN_BIN_ID_STORAGE_KEY, binId);
-  localStorage.setItem(JSONBIN_ACCESS_KEY_STORAGE_KEY, accessKey);
+function persistPantryConnection(pantryId, basketName) {
+  localStorage.setItem(PANTRY_ID_STORAGE_KEY, pantryId);
+  localStorage.setItem(PANTRY_BASKET_STORAGE_KEY, basketName);
 }
 
-async function jsonBinRequest(path, auth, options = {}) {
+async function pantryRequest(pantryId, basketName, options = {}) {
   const { method = "GET", body, extraHeaders = {} } = options;
-  const authHeader = auth?.masterKey
-    ? { "X-Master-Key": auth.masterKey }
-    : auth?.accessKey
-      ? { "X-Access-Key": auth.accessKey }
-      : {};
   const headers = {
     "Content-Type": "application/json",
-    ...authHeader,
     ...extraHeaders,
   };
+  const safePantryId = encodeURIComponent(pantryId);
+  const safeBasketName = encodeURIComponent(basketName);
+  const url = `${PANTRY_API_BASE}/pantry/${safePantryId}/basket/${safeBasketName}`;
 
-  const response = await fetch(`${JSONBIN_API_BASE}${path}`, {
+  const response = await fetch(url, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
+
+  if (response.status === 404 && method === "GET") {
+    return null;
+  }
 
   let payload = null;
   try {
@@ -116,26 +119,23 @@ function getLegacyMarkdownFromLocalStorage() {
   return "";
 }
 
-async function ensureJsonBin(key, initialMarkdown) {
-  const created = await jsonBinRequest("/b", { masterKey: key }, {
-    method: "POST",
+async function ensurePantryBasket(pantryId, basketName, initialMarkdown) {
+  const existing = await pantryRequest(pantryId, basketName, { method: "GET" });
+  const hasMarkdown = typeof existing?.markdown === "string" && existing.markdown.trim();
+  if (hasMarkdown) {
+    return existing.markdown;
+  }
+
+  const seedMarkdown = initialMarkdown || DEFAULT_MARKDOWN;
+  await pantryRequest(pantryId, basketName, {
+    method: "PUT",
     body: {
-      markdown: initialMarkdown || DEFAULT_MARKDOWN,
+      markdown: seedMarkdown,
       updatedAt: new Date().toISOString(),
       migratedFromLocalStorage: Boolean(initialMarkdown),
     },
-    extraHeaders: {
-      "X-Bin-Name": "homepage-dashboard",
-      "X-Bin-Private": "true",
-    },
   });
-
-  const createdBinId = created?.metadata?.id;
-  if (!createdBinId) {
-    throw new Error("Could not create JSONBin record");
-  }
-
-  return createdBinId;
+  return seedMarkdown;
 }
 
 function init() {
@@ -162,8 +162,8 @@ function init() {
   const authGateMessageEl = document.getElementById("auth-gate-message");
   const authSigninBtn = document.getElementById("auth-signin-btn");
 
-  let remoteBinId = "";
-  let currentJsonBinAccessKey = "";
+  let remotePantryId = "";
+  let remotePantryBasket = DEFAULT_PANTRY_BASKET;
   let appHydrated = false;
   let saveTimer = null;
 
@@ -190,7 +190,7 @@ function init() {
 
   function setAuthGate(message, showButton = true) {
     authGateMessageEl.textContent = message;
-    authSigninBtn.textContent = "Connect JSONBin";
+    authSigninBtn.textContent = "Connect Pantry";
     authSigninBtn.classList.toggle("hidden", !showButton);
     authGateEl.classList.remove("hidden");
   }
@@ -200,11 +200,11 @@ function init() {
   }
 
   function queueRemoteSave(newMd) {
-    if (!currentJsonBinAccessKey || !remoteBinId) return;
+    if (!remotePantryId || !remotePantryBasket) return;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
       try {
-        await jsonBinRequest(`/b/${remoteBinId}`, { accessKey: currentJsonBinAccessKey }, {
+        await pantryRequest(remotePantryId, remotePantryBasket, {
           method: "PUT",
           body: {
             markdown: newMd,
@@ -302,20 +302,18 @@ function init() {
 
   startClock(clockEl);
 
-  async function hydrateFromJsonBin(binId, accessKey) {
+  async function hydrateFromPantry(pantryId, basketName) {
     try {
-      currentJsonBinAccessKey = accessKey;
-      remoteBinId = binId;
+      remotePantryId = pantryId;
+      remotePantryBasket = basketName;
 
-      const remoteData = await jsonBinRequest(
-        `/b/${remoteBinId}/latest`,
-        { accessKey: currentJsonBinAccessKey },
-        { extraHeaders: { "X-Bin-Meta": "false" } },
-      );
+      const legacyMarkdown = getLegacyMarkdownFromLocalStorage();
+      const seededMarkdown = await ensurePantryBasket(pantryId, basketName, legacyMarkdown);
+      const remoteData = await pantryRequest(pantryId, basketName, { method: "GET" });
 
       const remoteMarkdown = typeof remoteData?.markdown === "string"
         ? remoteData.markdown
-        : DEFAULT_MARKDOWN;
+        : seededMarkdown;
 
       lastSavedMarkdown = remoteMarkdown;
       markdownInputEl.value = remoteMarkdown;
@@ -326,73 +324,64 @@ function init() {
       appHydrated = true;
       hideAuthGate();
     } catch (error) {
-      console.error("Failed to load JSONBin data", error);
+      console.error("Failed to load Pantry data", error);
       appHydrated = false;
-      setAuthGate("Could not load private data from JSONBin. Check key/network and try again.");
+      setAuthGate("Could not load Pantry data. Check Pantry ID/network and try again.");
     }
   }
 
-  async function createSeededBinWithMasterKey() {
-    const masterKey = requestJsonBinMasterKey();
-    if (!masterKey) {
-      setAuthGate("Master key is only needed once to seed/create your bin.");
+  async function createOrConnectPantry() {
+    const pantryId = requestPantryId();
+    if (!pantryId) {
+      setAuthGate("Pantry ID is required to connect this device.");
       return;
     }
 
-    const legacyMarkdown = getLegacyMarkdownFromLocalStorage();
-    const createdBinId = await ensureJsonBin(masterKey, legacyMarkdown);
-
-    const accessKey = requestJsonBinAccessKey();
-    if (!accessKey) {
-      setAuthGate("Access key is required for everyday sync after seeding.");
-      return;
-    }
-
-    persistConnection(createdBinId, accessKey);
-    window.alert(`JSONBin ready. Save this sync token for other devices:\n${createdBinId}:${accessKey}`);
-    await hydrateFromJsonBin(createdBinId, accessKey);
+    const basketName = requestPantryBasketName();
+    persistPantryConnection(pantryId, basketName);
+    window.alert(`Pantry connected. Save this sync token for other devices:\n${pantryId}:${basketName}`);
+    await hydrateFromPantry(pantryId, basketName);
   }
 
-  async function connectJsonBin() {
-    const syncToken = requestJsonBinSyncToken();
+  async function connectPantry() {
+    const syncToken = requestPantrySyncToken();
     if (syncToken) {
-      const parsed = parseSyncToken(syncToken);
+      const parsed = parsePantrySyncToken(syncToken);
       if (!parsed) {
-        setAuthGate("Invalid sync token format. Use BIN_ID:ACCESS_KEY.");
+        setAuthGate("Invalid sync token format. Use PANTRY_ID[:BASKET_NAME].");
         return;
       }
 
-      persistConnection(parsed.binId, parsed.accessKey);
-      await hydrateFromJsonBin(parsed.binId, parsed.accessKey);
+      persistPantryConnection(parsed.pantryId, parsed.basketName);
+      await hydrateFromPantry(parsed.pantryId, parsed.basketName);
       return;
     }
 
-    const shouldSeed = window.confirm(
-      "No sync token entered. Create and seed a new JSONBin with your Master Key?",
+    const shouldCreateOrConnect = window.confirm(
+      "No sync token entered. Connect directly using Pantry ID now?",
     );
-    if (!shouldSeed) {
-      setAuthGate("Enter sync token (BIN_ID:ACCESS_KEY) to connect this device.");
+    if (!shouldCreateOrConnect) {
+      setAuthGate("Enter sync token (PANTRY_ID[:BASKET_NAME]) to connect this device.");
       return;
     }
 
-    await createSeededBinWithMasterKey();
+    await createOrConnectPantry();
   }
 
   authSigninBtn.addEventListener("click", async () => {
-    await connectJsonBin();
+    await connectPantry();
   });
 
-  const storedBinId = (localStorage.getItem(JSONBIN_BIN_ID_STORAGE_KEY) || "").trim();
-  const storedAccessKey = getStoredJsonBinAccessKey();
+  const storedPantryId = getStoredPantryId();
+  const storedBasketName = getStoredPantryBasket() || DEFAULT_PANTRY_BASKET;
 
-  if (!storedBinId || !storedAccessKey) {
-    connectJsonBin();
-    setAuthGate("Connect using sync token (BIN_ID:ACCESS_KEY) or seed a new bin.");
+  if (!storedPantryId) {
+    setAuthGate("Connect using sync token (PANTRY_ID[:BASKET_NAME]) or Pantry ID.");
     return;
   }
 
   if (appHydrated) return;
-  hydrateFromJsonBin(storedBinId, storedAccessKey);
+  hydrateFromPantry(storedPantryId, storedBasketName);
 }
 
 document.addEventListener("DOMContentLoaded", init);
